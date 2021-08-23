@@ -34,8 +34,9 @@ locs <- file.path(dir_proj, 'whataburger-locations.csv') %>% read_csv()
 }
 
 f_safe <- possibly(yelp::business_match, otherwise = tibble(), quiet = FALSE)
-do_scrape_match <- function(.term, .city, .prefix) {
+do_scrape_match <- function(.term, .city) {
   path <- file.path(dir_data, sprintf('business_match-%s-%s.rds', str_replace_all(.term, '\\s+', '_'), str_replace_all(.city, '\\s+', '_')))
+  # You don't actually need what I've commented out.. the printing stuff is just ancillary.
   # prefix <- glue::glue('{Sys.time()}:')
   # suffix <- glue::glue('for {.term}, {.city}.')
   # ..print <- function(x) {
@@ -109,7 +110,7 @@ df_slim <-
 df_slim
 
 # ebbr ----
-# http://varianceexplained.org/r/empirical_bayes_baseball/
+# Reference: http://varianceexplained.org/r/empirical_bayes_baseball/
 # library(ebbr)
 # prior <-
 #   df_slim %>% 
@@ -124,6 +125,7 @@ df_slim
 # prior
 # prior %>% augment(data = df_slim %>% mutate(total = 5L))
 
+# Calculated these by guess and check.
 alpha <- 5
 beta <- alpha * 2 / 3
 df_slim_adj <-
@@ -216,7 +218,8 @@ df_slim %>%
   facet_wrap(~term)
 
 # matching model ----
-# https://github.com/tonyelhabr/bdb2021
+# Reference: https://github.com/tonyelhabr/bdb2021
+# bi is for binomial
 library(tidymodels)
 set.seed(42)
 split_bi <- df_slim_adj %>% initial_split(strata = term)
