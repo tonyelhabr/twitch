@@ -1,12 +1,14 @@
 
 library(tidyverse)
 library(nbastatR)
+library(rpart)
+
 dir_proj <- '02-unique_stat_combos'
 dir_data <- file.path(dir_proj, 'players')
 fs::dir_create(dir_data)
 # players_tables()
-Sys.setenv("VROOM_CONNECTION_SIZE")
-getOption("VROOM_CONNECTION_SIZE")
+# Sys.setenv("VROOM_CONNECTION_SIZE")
+# getOption("VROOM_CONNECTION_SIZE")
 df_dict_nba_players <- nbastatR::nba_players()
 
 players <- 
@@ -71,13 +73,29 @@ careers_proc <-
   rename(player = name_player)
 
 player_y <- 'Will Barton'
+player_y <- 'Jeremy Pargo'
 # careers_proc %>% skimr::skim()
+df_trn <-
+  careers_proc %>%
+  mutate(
+    is_player = case_when(player == player_y ~ 1, TRUE ~ 0),
+    across(where(is.numeric), ~as.double(.x) %>% coalesce(0)),
+    idx = row_number()
+  ) %>% 
+  relocate(idx, is_player) %>% 
+  arrange(desc(is_player))
+df_trn
+# df_trn %>% filter(minutes_total > 1000) %>% arrange(minutes_total)
+df_trn %>% arrange(desc(fg3m_pg))
+df_trn %>% arrange(pct_fg_total) %>% relocate(pct_fg_total) %>% slice(c(100:119))
 
 df_trn_long <-
   careers_proc %>%
-  mutate(is_player = case_when(player == player_y ~ 1, TRUE ~ 0)) %>% 
-  mutate(across(where(is.numeric), ~as.double(.x) %>% coalesce(0))) %>%
-  mutate(idx = row_number()) %>%
+  mutate(
+    is_player = case_when(player == player_y ~ 1, TRUE ~ 0),
+    across(where(is.numeric), ~as.double(.x) %>% coalesce(0)),
+    idx = row_number()
+  ) %>% 
   pivot_longer(
     -c(player, is_player, idx)
   )
@@ -85,6 +103,10 @@ df_trn_long
 
 df_trn_long_fp <- df_trn_long %>% filter(is_player == 0)
 df_trn_long_tp <- df_trn_long %>% filter(is_player == 1)
+
+df_trn <-
+  df_trn_long %>% 
+  left_join(df_trn_long_tp %>% select(name, value_y = value))
 
 df_trn <-
   bind_rows(
@@ -95,19 +117,18 @@ df_trn <-
   mutate(across(is_player, factor))
 df_trn
 
-library(rpart)
 fit <- 
   df_trn %>% 
-  select(-matches('_total$')) %>% 
+  select(-matches('_pg$')) %>% 
   as.data.frame() %>% 
   rpart::rpart(formula(is_player ~ . - player - idx), data = ., minbucket = 1)
+fit
 
 plot(fit)
 text(fit, use.n = TRUE)
 
 fit %>% summary()
 fit$variable.importance
-fi
 
 # fit %>% broomstick::glance()
 # fit %>% broomstick::augment()
